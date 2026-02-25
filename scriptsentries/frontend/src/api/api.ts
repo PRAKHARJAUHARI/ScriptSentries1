@@ -1,9 +1,9 @@
+// src/api/api.ts
 import axios from 'axios'
 import type { Script, RiskFlag, RiskUpdatePayload } from '../types'
 
 const api = axios.create({ baseURL: '/api' })
 
-// Attach JWT on every request
 api.interceptors.request.use((config) => {
   try {
     const stored = localStorage.getItem('ss_user')
@@ -29,9 +29,8 @@ export async function getScript(id: number): Promise<Script> {
 
 /**
  * Upload a PDF for zero-retention AI analysis.
- * projectId is REQUIRED by the backend @RequestParam("projectId").
- * It must be appended to the FormData body (not as a query param)
- * because the endpoint consumes multipart/form-data.
+ * projectId MUST be appended to FormData — backend @RequestParam("projectId") is required.
+ * Do NOT pass onProgress as the second arg — that was the original bug.
  */
 export async function scanScript(
   file: File,
@@ -40,10 +39,10 @@ export async function scanScript(
 ): Promise<Script> {
   const form = new FormData()
   form.append('file', file)
-  form.append('projectId', String(projectId))  // backend @RequestParam("projectId") Long
+  form.append('projectId', String(projectId))  // required by backend
 
   const { data } = await api.post<Script>('/scripts/scan', form, {
-    // Do NOT set Content-Type — axios sets multipart/form-data with boundary automatically
+    // Do NOT set Content-Type — axios sets multipart/form-data with boundary
     onUploadProgress: (e) => {
       if (onProgress && e.total) {
         onProgress(Math.round((e.loaded / e.total) * 100))
@@ -76,8 +75,8 @@ export async function exportScript(scriptId: number): Promise<void> {
   const filename = match?.[1] ?? `ScriptSentries_Report_${scriptId}.xlsx`
 
   const url = URL.createObjectURL(new Blob([response.data]))
-  const a   = document.createElement('a')
-  a.href     = url
+  const a = document.createElement('a')
+  a.href = url
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)

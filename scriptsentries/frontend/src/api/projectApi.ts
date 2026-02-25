@@ -2,6 +2,7 @@
 import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api' })
+
 api.interceptors.request.use((config) => {
   try {
     const stored = localStorage.getItem('ss_user')
@@ -13,28 +14,12 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
 export type ProjectRole =
-  | 'ATTORNEY'
-  | 'ANALYST'
-  | 'MAIN_PRODUCTION_CONTACT'
-  | 'PRODUCTION_ASSISTANT'
-  | 'VIEWER'
+  | 'ATTORNEY' | 'ANALYST' | 'MAIN_PRODUCTION_CONTACT'
+  | 'PRODUCTION_ASSISTANT' | 'VIEWER'
 
-export interface UserSummary {
-  id: number
-  username: string
-  email: string
-  role: string
-}
-
-export interface MemberResponse {
-  id: number
-  user: UserSummary
-  projectRole: ProjectRole
-  joinedAt: string
-}
+export interface UserSummary    { id: number; username: string; email: string; role: string }
+export interface MemberResponse { id: number; user: UserSummary; projectRole: ProjectRole; joinedAt: string }
 
 export interface ProjectResponse {
   id: number
@@ -92,12 +77,9 @@ export interface CreateProjectPayload {
   expectedRelease?: string
   imdbLink?: string
   notes?: string
-  members?: { userId: number; projectRole: ProjectRole }[]
 }
 
-export type UpdateProjectPayload = Partial<Omit<CreateProjectPayload, 'members'>>
-
-// ── API calls ────────────────────────────────────────────────────────────────
+// ── Projects ──────────────────────────────────────────────────────────────────
 
 export async function createProject(payload: CreateProjectPayload, userId: number): Promise<ProjectResponse> {
   const { data } = await api.post<ProjectResponse>('/projects', payload, { params: { userId } })
@@ -114,51 +96,55 @@ export async function getProject(id: number): Promise<ProjectResponse> {
   return data
 }
 
-export async function updateProject(id: number, payload: UpdateProjectPayload, userId: number): Promise<ProjectResponse> {
-  const { data } = await api.patch<ProjectResponse>(`/projects/${id}`, payload, { params: { userId } })
-  return data
-}
-
 export async function deleteProject(id: number, userId: number): Promise<void> {
   await api.delete(`/projects/${id}`, { params: { userId } })
 }
+
+// ── Timeline ──────────────────────────────────────────────────────────────────
 
 export async function getProjectTimeline(projectId: number): Promise<ProjectTimeline> {
   const { data } = await api.get<ProjectTimeline>(`/projects/${projectId}/timeline`)
   return data
 }
 
-export async function assignScriptToProject(
-  scriptId: number, projectId: number, versionName: string | undefined, userId: number
+// ── Members ───────────────────────────────────────────────────────────────────
+
+export async function addProjectMember(
+  projectId: number,
+  invite: { userId: number; projectRole: ProjectRole },
+  requestingUserId: number,
+): Promise<MemberResponse> {
+  const { data } = await api.post<MemberResponse>(
+    `/projects/${projectId}/members`,
+    invite,
+    { params: { requestingUserId } },
+  )
+  return data
+}
+
+export async function removeProjectMember(
+  projectId: number,
+  targetUserId: number,
+  requestingUserId: number,
 ): Promise<void> {
-  await api.post(`/projects/scripts/${scriptId}/assign`, null, {
-    params: { projectId, versionName, userId }
+  await api.delete(`/projects/${projectId}/members/${targetUserId}`, {
+    params: { requestingUserId },
   })
+}
+
+// ── Scripts ───────────────────────────────────────────────────────────────────
+
+export async function renameVersion(scriptId: number, versionName: string, userId: number): Promise<void> {
+  await api.patch(`/projects/scripts/${scriptId}/rename`, { versionName }, { params: { userId } })
 }
 
 export async function deleteScript(scriptId: number, userId: number): Promise<void> {
   await api.delete(`/projects/scripts/${scriptId}`, { params: { userId } })
 }
 
-export async function renameVersion(scriptId: number, versionName: string, userId: number): Promise<void> {
-  await api.patch(`/projects/scripts/${scriptId}/rename`, { versionName }, { params: { userId } })
-}
+// ── User search (for adding members) ─────────────────────────────────────────
 
-export async function addProjectMember(
-  projectId: number,
-  invite: { userId: number; projectRole: ProjectRole },
-  requestingUserId: number
-): Promise<MemberResponse> {
-  const { data } = await api.post<MemberResponse>(
-    `/projects/${projectId}/members`, invite, { params: { requestingUserId } }
-  )
+export async function searchUsers(query: string): Promise<UserSummary[]> {
+  const { data } = await api.get<UserSummary[]>('/auth/users/search', { params: { q: query } })
   return data
-}
-
-export async function removeProjectMember(
-  projectId: number, targetUserId: number, requestingUserId: number
-): Promise<void> {
-  await api.delete(`/projects/${projectId}/members/${targetUserId}`, {
-    params: { requestingUserId }
-  })
 }

@@ -1,16 +1,11 @@
 // src/components/ManageMembersModal.tsx
 import { useState } from 'react'
-import {
-  X, Plus, Trash2, Loader2, Users, Crown, Search,
-  Shield, Eye, Phone, Clapperboard, AlertTriangle
-} from 'lucide-react'
+import { X, UserPlus, Trash2, Loader2, AlertTriangle, Search, Crown } from 'lucide-react'
 import {
   addProjectMember, removeProjectMember,
   type ProjectResponse, type MemberResponse, type ProjectRole
 } from '../api/projectApi'
-import { searchUsers } from '../api/authApi'
-import type { UserSummary } from '../api/authApi'
-import { useAuth, canManageMembers, canAddViewer } from '../context/AuthContext'
+import { useAuth } from '../context/AuthContext'
 
 interface Props {
   project: ProjectResponse
@@ -18,262 +13,209 @@ interface Props {
   onUpdated: (project: ProjectResponse) => void
 }
 
-const ROLE_CONFIG: Record<ProjectRole, { label: string; desc: string; icon: React.ElementType; color: string }> = {
-  ATTORNEY:                { label: 'Attorney',             desc: 'Full access + finalize',     icon: Crown,       color: 'text-purple-400 bg-purple-950/50 border-purple-900/40' },
-  ANALYST:                 { label: 'Analyst',              desc: 'Edit, flag, comment',         icon: Shield,      color: 'text-blue-400   bg-blue-950/50   border-blue-900/40'   },
-  MAIN_PRODUCTION_CONTACT: { label: 'Prod. Contact',        desc: 'View + rename versions',      icon: Phone,       color: 'text-amber-400  bg-amber-950/50  border-amber-900/40'  },
-  PRODUCTION_ASSISTANT:    { label: 'Prod. Assistant',      desc: 'View only',                   icon: Clapperboard,color: 'text-slate-400  bg-slate-800/50  border-slate-700/40'  },
-  VIEWER:                  { label: 'Viewer',               desc: 'Read-only, no uploads',       icon: Eye,         color: 'text-zinc-400   bg-zinc-900/50   border-zinc-800/40'   },
-}
+const ROLES: { value: ProjectRole; label: string; desc: string; color: string }[] = [
+  { value: 'ATTORNEY',                label: 'Attorney',            desc: 'Full control',       color: 'text-violet-700 bg-violet-50 border-violet-200' },
+  { value: 'ANALYST',                 label: 'Analyst',             desc: 'Upload & clear',     color: 'text-blue-700   bg-blue-50   border-blue-200'   },
+  { value: 'MAIN_PRODUCTION_CONTACT', label: 'Production Contact',  desc: 'Monitor progress',   color: 'text-amber-700  bg-amber-50  border-amber-200'  },
+  { value: 'PRODUCTION_ASSISTANT',    label: 'Prod. Assistant',     desc: 'View & comment',     color: 'text-slate-600  bg-slate-100 border-slate-200'  },
+  { value: 'VIEWER',                  label: 'Viewer',              desc: 'Read-only',           color: 'text-zinc-500   bg-zinc-100  border-zinc-200'   },
+]
 
-function RoleBadge({ role }: { role: ProjectRole }) {
-  const cfg = ROLE_CONFIG[role]
-  const Icon = cfg.icon
-  return (
-    <span className={`inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded border font-medium ${cfg.color}`}>
-      <Icon size={9} /> {cfg.label}
-    </span>
-  )
+function roleStyle(r: string) {
+  return ROLES.find(x => x.value === r)?.color ?? 'text-slate-500 bg-slate-100 border-slate-200'
+}
+function roleLabel(r: string) {
+  return ROLES.find(x => x.value === r)?.label ?? r.replace(/_/g, ' ')
 }
 
 export function ManageMembersModal({ project, onClose, onUpdated }: Props) {
-  const { user }        = useAuth()
-  const userRole        = user?.role ?? 'VIEWER'
-  const userCanManage   = canManageMembers(userRole)
-  const userCanAddViewer= canAddViewer(userRole)
+  const { user } = useAuth()
 
-  const [members,       setMembers]       = useState<MemberResponse[]>(project.members)
-  const [searchQ,       setSearchQ]       = useState('')
-  const [searchResults, setSearchResults] = useState<UserSummary[]>([])
-  const [selectedRole,  setSelectedRole]  = useState<ProjectRole>('ANALYST')
-  const [removing,      setRemoving]      = useState<number | null>(null)
-  const [adding,        setAdding]        = useState(false)
-  const [error,         setError]         = useState<string | null>(null)
+  // Add form state
+  const [userId,   setUserId]   = useState('')
+  const [newRole,  setNewRole]  = useState<ProjectRole>('ANALYST')
+  const [adding,   setAdding]   = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
 
-  const handleSearch = async (q: string) => {
-    setSearchQ(q)
-    if (!q.trim()) { setSearchResults([]); return }
-    try {
-      const results = await searchUsers(q)
-      setSearchResults(results.filter(r =>
-        r.id !== user?.userId && !members.find(m => m.user.id === r.id)
-      ))
-    } catch { setSearchResults([]) }
-  }
+  // Remove state
+  const [removingId, setRemovingId] = useState<number | null>(null)
+  const [removeError, setRemoveError] = useState<string | null>(null)
 
-  const handleAdd = async (u: UserSummary) => {
+  const handleAdd = async () => {
+    const uid = parseInt(userId.trim(), 10)
+    if (!uid || isNaN(uid)) { setAddError('Enter a valid numeric User ID.'); return }
     if (!user) return
-    setError(null)
+
     setAdding(true)
-    setSearchQ('')
-    setSearchResults([])
+    setAddError(null)
     try {
-      const newMember = await addProjectMember(
-        project.id,
-        { userId: u.id, projectRole: selectedRole },
-        user.userId
-      )
-      const updated = [...members, newMember]
-      setMembers(updated)
-      onUpdated({ ...project, members: updated })
+      const member = await addProjectMember(project.id, { userId: uid, projectRole: newRole }, user.userId)
+      const updated: ProjectResponse = {
+        ...project,
+        members: [...project.members, member],
+      }
+      onUpdated(updated)
+      setUserId('')
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to add member')
+      setAddError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to add member.')
     } finally {
       setAdding(false)
     }
   }
 
-  const handleRemove = async (memberId: number, userId: number) => {
+  const handleRemove = async (member: MemberResponse) => {
     if (!user) return
-    setError(null)
-    setRemoving(memberId)
+    setRemovingId(member.user.id)
+    setRemoveError(null)
     try {
-      await removeProjectMember(project.id, userId, user.userId)
-      const updated = members.filter(m => m.id !== memberId)
-      setMembers(updated)
-      onUpdated({ ...project, members: updated })
+      await removeProjectMember(project.id, member.user.id, user.userId)
+      const updated: ProjectResponse = {
+        ...project,
+        members: project.members.filter(m => m.user.id !== member.user.id),
+      }
+      onUpdated(updated)
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to remove member')
+      setRemoveError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to remove member.')
     } finally {
-      setRemoving(null)
+      setRemovingId(null)
     }
   }
 
-  // Roles available for adding — VIEWERs only if user has canAddViewer permission
-  const availableRoles = Object.entries(ROLE_CONFIG).filter(([role]) =>
-    role !== 'VIEWER' || userCanAddViewer
-  ) as [ProjectRole, typeof ROLE_CONFIG[ProjectRole]][]
+  const isCreator = (m: MemberResponse) =>
+    project.createdBy && m.user.id === project.createdBy.id
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-lg bg-[#070c11] border border-white/[0.08] rounded-2xl
-                        shadow-2xl pointer-events-auto animate-slide-up overflow-hidden">
+        <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-xl
+                        pointer-events-auto flex flex-col max-h-[90vh]">
 
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-white/[0.06]">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-jade-700/20 border border-jade-700/30
-                              flex items-center justify-center">
-                <Users size={15} className="text-jade-400" />
-              </div>
-              <div>
-                <h2 className="font-display text-lg text-white">Manage Members</h2>
-                <p className="text-[11px] text-slate-600">{project.name} · {members.length} member{members.length !== 1 ? 's' : ''}</p>
-              </div>
+          <div className="flex items-center justify-between p-5 border-b border-slate-100 flex-shrink-0">
+            <div>
+              <h2 className="font-display text-lg text-slate-900">Manage Team</h2>
+              <p className="text-[11px] text-slate-400 mt-0.5 truncate max-w-[280px]">{project.name}</p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/[0.07] rounded-xl transition-colors">
-              <X size={16} className="text-slate-500" />
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+              <X size={16} className="text-slate-400" />
             </button>
           </div>
 
-          <div className="p-5 space-y-5 max-h-[65vh] overflow-y-auto">
+          <div className="overflow-y-auto flex-1">
 
-            {/* Add member (only if user can manage) */}
-            {userCanManage && (
-              <div className="space-y-3">
-                <p className="text-[10px] text-slate-600 uppercase tracking-widest">Add Member</p>
-
-                {/* Role selector */}
-                <div className="grid grid-cols-5 gap-1.5">
-                  {availableRoles.map(([role, cfg]) => {
-                    const Icon = cfg.icon
-                    return (
-                      <button key={role} type="button"
-                        onClick={() => setSelectedRole(role)}
-                        title={cfg.desc}
-                        className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl border
-                                    transition-all text-center ${
-                          selectedRole === role
-                            ? 'border-jade-600/50 bg-jade-950/40 text-jade-300'
-                            : 'border-white/[0.06] bg-white/[0.02] text-slate-600 hover:text-slate-400'
-                        }`}>
-                        <Icon size={12} />
-                        <span className="text-[9px] font-medium leading-tight">{cfg.label}</span>
-                      </button>
-                    )
-                  })}
+            {/* Add member */}
+            <div className="p-5 border-b border-slate-100">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <UserPlus size={11} /> Add Member
+              </p>
+              <div className="flex gap-2 mb-3">
+                <div className="relative flex-1">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type="number"
+                    value={userId}
+                    onChange={e => setUserId(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                    placeholder="User ID (numeric)"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm
+                               rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:border-emerald-400
+                               focus:ring-2 focus:ring-emerald-100 placeholder-slate-300 transition-all"
+                  />
                 </div>
+                <button onClick={handleAdd} disabled={adding || !userId.trim()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500
+                             text-white text-sm font-medium rounded-xl transition-all disabled:opacity-40">
+                  {adding ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
+                  Add
+                </button>
+              </div>
 
-                {/* VIEWER warning */}
-                {selectedRole === 'VIEWER' && (
-                  <div className="flex items-center gap-2 bg-zinc-900/40 border border-zinc-800/40
-                                  rounded-xl px-3 py-2">
-                    <Eye size={12} className="text-zinc-500 flex-shrink-0" />
-                    <p className="text-[10px] text-zinc-500">
-                      VIEWER gets read-only access. Cannot upload, edit, or comment.
-                    </p>
-                  </div>
-                )}
+              {/* Role selector */}
+              <div className="grid grid-cols-5 gap-1.5">
+                {ROLES.map(r => (
+                  <button key={r.value} type="button" onClick={() => setNewRole(r.value)}
+                    className={`text-center p-2 rounded-xl border text-left transition-all ${
+                      newRole === r.value
+                        ? r.color + ' ring-2 ring-offset-1 ring-emerald-300'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}>
+                    <p className="text-[10px] font-bold text-slate-700 leading-tight">{r.label}</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">{r.desc}</p>
+                  </button>
+                ))}
+              </div>
 
-                {/* Search */}
-                <div className="relative">
-                  <Search size={12} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-700" />
-                  <input type="text" value={searchQ} onChange={e => handleSearch(e.target.value)}
-                    placeholder="Search username to add..."
-                    className="w-full bg-white/[0.03] border border-white/[0.07] text-white text-sm
-                               rounded-xl pl-9 pr-4 py-3 focus:outline-none focus:border-jade-600/50
-                               placeholder-slate-700 transition-all" />
-                  {searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#0a1018] border
-                                    border-white/[0.1] rounded-xl shadow-xl z-10 overflow-hidden">
-                      {searchResults.map(u => (
-                        <button key={u.id} type="button"
-                          onClick={() => handleAdd(u)}
-                          disabled={adding}
-                          className="w-full flex items-center gap-3 px-4 py-2.5
-                                     hover:bg-white/[0.05] transition-colors text-left disabled:opacity-50">
-                          <div className="w-6 h-6 rounded-full bg-white/[0.05] border border-white/[0.08]
-                                          flex items-center justify-center flex-shrink-0">
-                            <span className="text-[10px] text-slate-400">
-                              {u.username.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white">@{u.username}</p>
-                            <p className="text-[10px] text-slate-600 truncate">{u.email}</p>
-                          </div>
-                          {adding
-                            ? <Loader2 size={12} className="animate-spin text-jade-600 flex-shrink-0" />
-                            : <Plus size={12} className="text-jade-600 flex-shrink-0" />
+              {addError && (
+                <div className="flex items-center gap-2 mt-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  <AlertTriangle size={12} className="text-red-500 flex-shrink-0" />
+                  <p className="text-xs text-red-600">{addError}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Current members */}
+            <div className="p-5">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                Current Members ({project.members.length})
+              </p>
+
+              {removeError && (
+                <div className="flex items-center gap-2 mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  <AlertTriangle size={12} className="text-red-500 flex-shrink-0" />
+                  <p className="text-xs text-red-600">{removeError}</p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {project.members.map(m => {
+                  const creator = isCreator(m)
+                  const isSelf  = user?.userId === m.user.id
+                  const canRemove = !creator && !isSelf
+
+                  return (
+                    <div key={m.id}
+                      className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200
+                                      flex items-center justify-center flex-shrink-0">
+                        <span className="text-[11px] font-bold text-emerald-700">
+                          {m.user.username.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-semibold text-slate-700 truncate">@{m.user.username}</p>
+                          {creator && <Crown size={10} className="text-amber-500 flex-shrink-0" title="Project creator" />}
+                          {isSelf && <span className="text-[9px] text-slate-400">(you)</span>}
+                        </div>
+                        <p className="text-[10px] text-slate-400 truncate">{m.user.email}</p>
+                      </div>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold flex-shrink-0 ${roleStyle(m.projectRole)}`}>
+                        {roleLabel(m.projectRole)}
+                      </span>
+                      {canRemove ? (
+                        <button
+                          onClick={() => handleRemove(m)}
+                          disabled={removingId === m.user.id}
+                          className="p-1.5 hover:bg-red-50 hover:text-red-500 text-slate-300
+                                     rounded-lg transition-colors disabled:opacity-40 flex-shrink-0">
+                          {removingId === m.user.id
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : <Trash2 size={13} />
                           }
                         </button>
-                      ))}
+                      ) : (
+                        <div className="w-7 flex-shrink-0" />
+                      )}
                     </div>
-                  )}
-                </div>
+                  )
+                })}
               </div>
-            )}
-
-            {error && (
-              <div className="flex items-center gap-2 bg-red-950/30 border border-red-800/30
-                              rounded-xl px-4 py-3">
-                <AlertTriangle size={13} className="text-red-400 flex-shrink-0" />
-                <p className="text-xs text-red-400">{error}</p>
-              </div>
-            )}
-
-            {/* Member list */}
-            <div className="space-y-2">
-              <p className="text-[10px] text-slate-600 uppercase tracking-widest">
-                Current Members ({members.length})
-              </p>
-              {members.map(m => {
-                const isCreator = project.createdBy?.id === m.user.id
-                const isSelf    = user?.userId === m.user.id
-                const canRemove = userCanManage && !isCreator && !isSelf
-
-                return (
-                  <div key={m.id}
-                    className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06]
-                               rounded-xl px-3 py-2.5">
-                    <div className="w-7 h-7 rounded-full bg-jade-900/40 border border-jade-800/40
-                                    flex items-center justify-center flex-shrink-0">
-                      <span className="text-[10px] text-jade-400 font-medium">
-                        {m.user.username.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-slate-300 font-medium truncate">
-                          @{m.user.username}
-                        </p>
-                        {isCreator && (
-                          <span className="text-[9px] text-jade-600 flex items-center gap-0.5">
-                            <Crown size={8} /> Creator
-                          </span>
-                        )}
-                        {isSelf && !isCreator && (
-                          <span className="text-[9px] text-slate-700">(you)</span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-slate-700 truncate">{m.user.email}</p>
-                    </div>
-                    <RoleBadge role={m.projectRole} />
-                    {canRemove && (
-                      <button
-                        onClick={() => handleRemove(m.id, m.user.id)}
-                        disabled={removing === m.id}
-                        className="p-1.5 hover:bg-red-950/40 rounded-lg transition-colors
-                                   text-slate-700 hover:text-red-400 flex-shrink-0
-                                   disabled:opacity-50">
-                        {removing === m.id
-                          ? <Loader2 size={12} className="animate-spin" />
-                          : <Trash2 size={12} />
-                        }
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
             </div>
           </div>
 
-          <div className="p-4 border-t border-white/[0.06]">
-            <button onClick={onClose}
-              className="w-full py-2.5 bg-white/[0.04] border border-white/[0.07] text-slate-400
-                         text-sm rounded-xl hover:bg-white/[0.07] transition-all">
+          <div className="p-4 border-t border-slate-100 bg-slate-50 flex-shrink-0">
+            <button onClick={onClose} className="w-full py-2 text-sm text-slate-500 hover:text-slate-800 transition-colors">
               Done
             </button>
           </div>

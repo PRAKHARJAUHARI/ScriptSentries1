@@ -1,14 +1,7 @@
 // src/components/CreateProjectModal.tsx
-
-import { useState, FormEvent } from 'react'
-import { X, Plus, Trash2, Loader2, Film, Building2 } from 'lucide-react'
-import {
-  createProject,
-  type ProjectResponse,
-  type ProjectRole,
-} from '../api/projectApi'
-import { searchUsers } from '../api/authApi'
-import type { UserSummary } from '../api/authApi'
+import { useState } from 'react'
+import { X, Film, Loader2, AlertTriangle } from 'lucide-react'
+import { createProject, type ProjectResponse } from '../api/projectApi'
 import { useAuth } from '../context/AuthContext'
 
 interface Props {
@@ -16,222 +9,127 @@ interface Props {
   onCreated: (project: ProjectResponse) => void
 }
 
-const PROJECT_ROLES: { value: ProjectRole; label: string }[] = [
-  { value: 'ATTORNEY',                label: 'Attorney'              },
-  { value: 'ANALYST',                 label: 'Analyst'               },
-  { value: 'MAIN_PRODUCTION_CONTACT', label: 'Production Contact'    },
-  { value: 'PRODUCTION_ASSISTANT',    label: 'Production Assistant'  },
-]
-
-interface MemberRow { user: UserSummary; projectRole: ProjectRole }
-
 export function CreateProjectModal({ onClose, onCreated }: Props) {
   const { user } = useAuth()
-  const [name,          setName]          = useState('')
-  const [studioName,    setStudioName]    = useState('')
-  const [members,       setMembers]       = useState<MemberRow[]>([])
-  const [searchQ,       setSearchQ]       = useState('')
-  const [searchResults, setSearchResults] = useState<UserSummary[]>([])
-  const [loading,       setLoading]       = useState(false)
-  const [error,         setError]         = useState<string | null>(null)
+  const [name,     setName]     = useState('')
+  const [studio,   setStudio]   = useState('')
+  const [director, setDirector] = useState('')
+  const [genre,    setGenre]    = useState('')
+  const [logline,  setLogline]  = useState('')
+  const [saving,   setSaving]   = useState(false)
+  const [error,    setError]    = useState<string | null>(null)
 
-  const handleSearch = async (q: string) => {
-    setSearchQ(q)
-    if (!q.trim()) { setSearchResults([]); return }
-    try {
-      const results = await searchUsers(q)
-      setSearchResults(results.filter(r =>
-        r.id !== user?.userId && !members.find(m => m.user.id === r.id)
-      ))
-    } catch { setSearchResults([]) }
-  }
-
-  const addMember = (u: UserSummary) => {
-    setMembers(prev => [...prev, { user: u, projectRole: 'ANALYST' }])
-    setSearchResults([])
-    setSearchQ('')
-  }
-
-  const removeMember  = (uid: number) => setMembers(prev => prev.filter(m => m.user.id !== uid))
-  const updateRole    = (uid: number, role: ProjectRole) =>
-    setMembers(prev => prev.map(m => m.user.id === uid ? { ...m, projectRole: role } : m))
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!user || !name.trim()) return
+  const handleCreate = async () => {
+    if (!name.trim()) { setError('Project name is required.'); return }
+    if (!user) return
+    setSaving(true)
     setError(null)
-    setLoading(true)
     try {
-      const project = await createProject(
-        {
-          name: name.trim(),
-          studioName: studioName.trim() || undefined,
-          members: members.map(m => ({ userId: m.user.id, projectRole: m.projectRole })),
-        },
-        user.userId
-      )
+      const project = await createProject({
+        name: name.trim(),
+        studioName: studio.trim() || undefined,
+        director:   director.trim() || undefined,
+        genre:      genre.trim() || undefined,
+        logline:    logline.trim() || undefined,
+      }, user.userId)
       onCreated(project)
-    } catch (err: unknown) {
-      setError(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? 'Failed to create project'
-      )
+    } catch (e: unknown) {
+      setError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to create project.')
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-lg bg-[#070c11] border border-white/[0.08] rounded-2xl
-                        shadow-2xl pointer-events-auto animate-slide-up overflow-hidden">
+        <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl
+                        shadow-xl pointer-events-auto overflow-hidden">
 
-          {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-white/[0.06]">
+          <div className="flex items-center justify-between p-5 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-jade-700/20 border border-jade-700/30
-                              flex items-center justify-center">
-                <Film size={15} className="text-jade-400" />
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                <Film size={16} className="text-emerald-600" />
               </div>
-              <div>
-                <h2 className="font-display text-lg text-white">New Project</h2>
-                <p className="text-[11px] text-slate-600">Create a script clearance project</p>
-              </div>
+              <h2 className="font-display text-lg text-slate-900">New Project</h2>
             </div>
-            <button onClick={onClose}
-              className="p-2 hover:bg-white/[0.07] rounded-xl transition-colors">
-              <X size={16} className="text-slate-500" />
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+              <X size={16} className="text-slate-400" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
-
-              {/* Project name */}
-              <div>
-                <label className="block text-[10px] text-slate-600 mb-1.5 uppercase tracking-widest">
-                  Project Name *
-                </label>
-                <div className="relative">
-                  <Film size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-700" />
-                  <input type="text" value={name} onChange={e => setName(e.target.value)}
-                    placeholder="Untitled Feature Film" required
-                    className="w-full bg-white/[0.03] border border-white/[0.07] text-white text-sm
-                               rounded-xl pl-9 pr-4 py-3 focus:outline-none focus:border-jade-600/50
-                               placeholder-slate-700 transition-all" />
-                </div>
-              </div>
-
-              {/* Studio */}
-              <div>
-                <label className="block text-[10px] text-slate-600 mb-1.5 uppercase tracking-widest">
-                  Studio / Production Company
-                </label>
-                <div className="relative">
-                  <Building2 size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-700" />
-                  <input type="text" value={studioName} onChange={e => setStudioName(e.target.value)}
-                    placeholder="Universal Pictures"
-                    className="w-full bg-white/[0.03] border border-white/[0.07] text-white text-sm
-                               rounded-xl pl-9 pr-4 py-3 focus:outline-none focus:border-jade-600/50
-                               placeholder-slate-700 transition-all" />
-                </div>
-              </div>
-
-              {/* Member search */}
-              <div>
-                <label className="block text-[10px] text-slate-600 mb-1.5 uppercase tracking-widest">
-                  Invite Team Members
-                </label>
-                <div className="relative">
-                  <input type="text" value={searchQ} onChange={e => handleSearch(e.target.value)}
-                    placeholder="Search by username..."
-                    className="w-full bg-white/[0.03] border border-white/[0.07] text-white text-sm
-                               rounded-xl px-4 py-3 focus:outline-none focus:border-jade-600/50
-                               placeholder-slate-700 transition-all" />
-                  {searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#0a1018]
-                                    border border-white/[0.1] rounded-xl shadow-xl z-10 overflow-hidden">
-                      {searchResults.map(u => (
-                        <button key={u.id} type="button" onClick={() => addMember(u)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5
-                                     hover:bg-white/[0.05] transition-colors text-left">
-                          <div className="w-6 h-6 rounded-full bg-white/[0.05] border border-white/[0.08]
-                                          flex items-center justify-center flex-shrink-0">
-                            <span className="text-[10px] text-slate-400">
-                              {u.username.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white">@{u.username}</p>
-                            <p className="text-[10px] text-slate-600 truncate">{u.email}</p>
-                          </div>
-                          <Plus size={12} className="text-jade-600 flex-shrink-0" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Added members list */}
-              {members.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-[10px] text-slate-700 uppercase tracking-widest">Added Members</p>
-                  {members.map(m => (
-                    <div key={m.user.id}
-                      className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06]
-                                 rounded-xl px-3 py-2.5">
-                      <div className="w-6 h-6 rounded-full bg-jade-900/40 border border-jade-800/40
-                                      flex items-center justify-center flex-shrink-0">
-                        <span className="text-[10px] text-jade-400 font-medium">
-                          {m.user.username.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <span className="text-sm text-slate-300 flex-1 truncate">@{m.user.username}</span>
-                      <select
-                        value={m.projectRole}
-                        onChange={e => updateRole(m.user.id, e.target.value as ProjectRole)}
-                        className="bg-white/[0.04] border border-white/[0.07] text-slate-400 text-xs
-                                   rounded-lg px-2 py-1 focus:outline-none focus:border-jade-600/50">
-                        {PROJECT_ROLES.map(r => (
-                          <option key={r.value} value={r.value}>{r.label}</option>
-                        ))}
-                      </select>
-                      <button type="button" onClick={() => removeMember(m.user.id)}
-                        className="p-1 hover:bg-red-950/40 rounded-lg transition-colors
-                                   text-slate-700 hover:text-red-400 flex-shrink-0">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {error && (
-                <p className="text-xs text-red-400 bg-red-950/30 border border-red-800/30
-                               rounded-xl px-4 py-3">{error}</p>
-              )}
+          <div className="p-5 space-y-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                Project Name *
+              </label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                placeholder="e.g. Untitled Feature Film"
+                autoFocus
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm
+                           rounded-xl px-4 py-2.5 focus:outline-none focus:border-emerald-400
+                           focus:ring-2 focus:ring-emerald-100 placeholder-slate-300 transition-all" />
             </div>
 
-            <div className="p-4 border-t border-white/[0.06] flex gap-3">
-              <button type="submit" disabled={loading || !name.trim()}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5
-                           bg-jade-700 hover:bg-jade-600 text-white text-sm font-medium
-                           rounded-xl transition-all disabled:opacity-50">
-                {loading
-                  ? <><Loader2 size={14} className="animate-spin" /> Creating...</>
-                  : 'Create Project'
-                }
-              </button>
-              <button type="button" onClick={onClose}
-                className="px-5 py-2.5 bg-white/[0.04] border border-white/[0.07]
-                           text-slate-400 text-sm rounded-xl hover:bg-white/[0.07] transition-all">
-                Cancel
-              </button>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Studio</label>
+                <input type="text" value={studio} onChange={e => setStudio(e.target.value)}
+                  placeholder="Studio name"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm
+                             rounded-xl px-4 py-2.5 focus:outline-none focus:border-emerald-400
+                             focus:ring-2 focus:ring-emerald-100 placeholder-slate-300 transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Genre</label>
+                <input type="text" value={genre} onChange={e => setGenre(e.target.value)}
+                  placeholder="e.g. Thriller"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm
+                             rounded-xl px-4 py-2.5 focus:outline-none focus:border-emerald-400
+                             focus:ring-2 focus:ring-emerald-100 placeholder-slate-300 transition-all" />
+              </div>
             </div>
-          </form>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Director</label>
+              <input type="text" value={director} onChange={e => setDirector(e.target.value)}
+                placeholder="Director's name"
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm
+                           rounded-xl px-4 py-2.5 focus:outline-none focus:border-emerald-400
+                           focus:ring-2 focus:ring-emerald-100 placeholder-slate-300 transition-all" />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Logline</label>
+              <textarea value={logline} onChange={e => setLogline(e.target.value)}
+                rows={2} placeholder="One-line description..."
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm
+                           rounded-xl px-4 py-2.5 focus:outline-none focus:border-emerald-400
+                           focus:ring-2 focus:ring-emerald-100 placeholder-slate-300 resize-none transition-all" />
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <AlertTriangle size={13} className="text-red-500 flex-shrink-0" />
+                <p className="text-xs text-red-600">{error}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-3">
+            <button onClick={handleCreate} disabled={saving || !name.trim()}
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-emerald-600
+                         hover:bg-emerald-500 text-white font-medium py-2.5 rounded-xl text-sm
+                         transition-all disabled:opacity-40 active:scale-95">
+              {saving ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : <><Film size={14} /> Create Project</>}
+            </button>
+            <button onClick={onClose} className="px-5 py-2.5 text-sm text-slate-500 hover:text-slate-800
+                                                  border border-slate-200 bg-white rounded-xl transition-colors">
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </>
