@@ -1,4 +1,4 @@
-package com.scriptsentries.controller;
+secpackage com.scriptsentries.controller;
 
 import com.scriptsentries.dto.CollabDto;
 import com.scriptsentries.repository.UserRepository;
@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/collab")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000","https://script-sentries1-6xy6.vercel.app/"})
 public class CollabController {
 
     private final CommentService commentService;
