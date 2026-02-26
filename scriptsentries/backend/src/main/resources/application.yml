@@ -29,9 +29,10 @@ spring:
       max-request-size: 55MB
 
 
+
   ai:
     openai:
-      api-key: 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
+      api-key: ${GROQ_API_KEY}
       base-url: https://api.groq.com/openai/v1
 
       # 'chat' MUST be indented under 'openai'

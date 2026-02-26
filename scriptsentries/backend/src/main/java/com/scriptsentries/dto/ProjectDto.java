@@ -1,7 +1,7 @@
 package com.scriptsentries.dto;
 
 import com.scriptsentries.model.*;
-import com.scriptsentries.model.enums.ProjectRole;
+import com.scriptsentries.model.ProjectRole;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
