@@ -77,10 +77,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:*"));
+        
+        // --- THE FINAL CORS FIX ---
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",                          // Keep this for local laptop testing
+                "https://script-sentries1-6xy6.vercel.app"     // Your LIVE Vercel frontend!
+        ));
+        
         config.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("Content-Disposition"));
+        config.setExposedHeaders(List.of("Content-Disposition")); // Important for PDF/Excel downloads
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
