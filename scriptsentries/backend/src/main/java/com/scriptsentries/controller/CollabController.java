@@ -1,4 +1,4 @@
-secpackage com.scriptsentries.controller;
+package com.scriptsentries.controller;
 
 import com.scriptsentries.dto.CollabDto;
 import com.scriptsentries.repository.UserRepository;
