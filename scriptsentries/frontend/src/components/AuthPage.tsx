@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { ShieldCheck, Eye, EyeOff, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import api from '../api/api' // <-- ADD THIS LINE
 
 interface Props {
   onSuccess: (user: { userId: number; username: string; email: string; role: string; token: string }) => void
@@ -41,26 +42,30 @@ export function AuthPage({ onSuccess, onBack, defaultMode = 'login' }: Props) {
     setLoading(true)
     setError(null)
 
-    try {
-      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register'
+try {
+      // 1. Remove '/api' from the start, because your api.ts baseURL already includes it!
+      const endpoint = mode === 'login' ? '/auth/login' : '/auth/register'
+      
       const body = mode === 'login'
         ? { username: username.trim(), password }
         : { username: username.trim(), email: email.trim(), password, role }
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? data.message ?? 'Something went wrong')
+      // 2. Use your custom api instance instead of fetch
+      const res = await api.post(endpoint, body)
+      
+      // 3. Axios automatically parses JSON into the .data property
+      const data = res.data 
 
       localStorage.setItem('ss_user', JSON.stringify(data))
       login(data)
       onSuccess(data)
-    } catch (e: unknown) {
-      setError((e as Error).message)
+    } catch (e: any) {
+      // 4. Axios puts server errors inside e.response.data
+      const errorMessage = e.response?.data?.error 
+                        || e.response?.data?.message 
+                        || e.message 
+                        || 'Something went wrong'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
