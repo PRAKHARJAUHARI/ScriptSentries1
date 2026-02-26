@@ -22,6 +22,7 @@ interface FieldProps {
   onDraftChange: (key: keyof UpdateProjectPayload, val: string) => void
   multiline?: boolean
   type?: string
+  // No `placeholder` here — the component auto-generates it from `label`
 }
 
 function DetailField({ icon, label, value, editing, inputKey, draft, onDraftChange, multiline, type = 'text' }: FieldProps) {
@@ -29,7 +30,7 @@ function DetailField({ icon, label, value, editing, inputKey, draft, onDraftChan
 
   return (
     <div className="space-y-1.5">
-      <label className="flex items-center gap-1.5 text-[10px] text-slate-600 uppercase tracking-widest">
+      <label className="flex items-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-widest font-semibold">
         {icon} {label}
       </label>
       {editing ? (
@@ -38,27 +39,28 @@ function DetailField({ icon, label, value, editing, inputKey, draft, onDraftChan
             value={(displayVal as string) ?? ''}
             onChange={e => onDraftChange(inputKey, e.target.value)}
             rows={3}
-            className="w-full bg-white/[0.03] border border-jade-600/30 text-white text-sm
-                       rounded-xl px-4 py-3 focus:outline-none focus:border-jade-500
-                       placeholder-slate-700 resize-none transition-all"
-            placeholder={`Enter ${label.toLowerCase()}...`}
+            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm
+                       rounded-xl px-4 py-2.5 focus:outline-none focus:border-emerald-400
+                       focus:ring-2 focus:ring-emerald-100 placeholder-slate-300
+                       resize-none transition-all"
+            placeholder={`Enter ${label.toLowerCase()}…`}
           />
         ) : (
           <input
             type={type}
             value={(displayVal as string) ?? ''}
             onChange={e => onDraftChange(inputKey, e.target.value)}
-            className="w-full bg-white/[0.03] border border-jade-600/30 text-white text-sm
-                       rounded-xl px-4 py-3 focus:outline-none focus:border-jade-500
-                       placeholder-slate-700 transition-all"
-            placeholder={`Enter ${label.toLowerCase()}...`}
+            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm
+                       rounded-xl px-4 py-2.5 focus:outline-none focus:border-emerald-400
+                       focus:ring-2 focus:ring-emerald-100 placeholder-slate-300 transition-all"
+            placeholder={`Enter ${label.toLowerCase()}…`}
           />
         )
       ) : (
-        <div className={`text-sm rounded-xl px-4 py-3 min-h-[44px] border ${
+        <div className={`text-sm rounded-xl px-4 py-2.5 min-h-[40px] border ${
           displayVal
-            ? 'text-slate-300 bg-white/[0.02] border-white/[0.05]'
-            : 'text-slate-700 italic bg-white/[0.01] border-white/[0.03]'
+            ? 'text-slate-700 bg-slate-50 border-slate-100'
+            : 'text-slate-300 italic bg-slate-50/50 border-slate-100'
         }`}>
           {displayVal || `No ${label.toLowerCase()} set`}
         </div>
@@ -76,7 +78,7 @@ export function ProjectDetailsTab({ project, onUpdated }: Props) {
   const [error,   setError]   = useState<string | null>(null)
 
   const handleDraftChange = (key: keyof UpdateProjectPayload, val: string) => {
-    setDraft(prev => ({ ...prev, [key]: val }))
+    setDraft((prev: UpdateProjectPayload) => ({ ...prev, [key]: val }))
   }
 
   const handleSave = async () => {
@@ -105,26 +107,26 @@ export function ProjectDetailsTab({ project, onUpdated }: Props) {
       {/* Action bar */}
       {userCanEdit && (
         <div className="flex items-center justify-between">
-          <p className="text-[11px] text-slate-700">
+          <p className="text-[11px] text-slate-400">
             {editing ? 'Edit production details below' : 'View and edit project production information'}
           </p>
           {editing ? (
             <div className="flex items-center gap-2">
               <button onClick={handleSave} disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 bg-jade-700 hover:bg-jade-600
+                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500
                            text-white text-xs font-medium rounded-xl transition-all disabled:opacity-50">
-                {saving ? <><Loader2 size={12} className="animate-spin" /> Saving...</> : <><Check size={12} /> Save</>}
+                {saving ? <><Loader2 size={12} className="animate-spin" /> Saving…</> : <><Check size={12} /> Save</>}
               </button>
               <button onClick={handleCancel}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white/[0.04] border border-white/[0.07]
-                           text-slate-400 text-xs rounded-xl hover:bg-white/[0.07] transition-all">
+                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200
+                           text-slate-500 text-xs rounded-xl hover:bg-slate-50 transition-all">
                 <X size={12} /> Cancel
               </button>
             </div>
           ) : (
             <button onClick={() => setEditing(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-white/[0.04] border border-white/[0.07]
-                         text-slate-400 text-xs rounded-xl hover:bg-white/[0.07] transition-all">
+              className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200
+                         text-slate-500 text-xs rounded-xl hover:bg-slate-50 transition-all">
               <Pencil size={11} /> Edit Details
             </button>
           )}
@@ -132,62 +134,49 @@ export function ProjectDetailsTab({ project, onUpdated }: Props) {
       )}
 
       {error && (
-        <div className="text-xs text-red-400 bg-red-950/30 border border-red-800/30 rounded-xl px-4 py-3">
+        <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
           {error}
         </div>
       )}
 
-      {/* ── Production Info ── */}
-      <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 space-y-4">
-        <h3 className="text-[10px] text-slate-600 uppercase tracking-widest flex items-center gap-2">
+      {/* Production Info */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
+        <h3 className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold flex items-center gap-2">
           <Film size={11} /> Production Information
         </h3>
-
         <div className="grid gap-4 sm:grid-cols-2">
-          <DetailField icon={<Film size={10} />} label="Project Name" value={project.name}
-            inputKey="name" {...fieldProps} />
-          <DetailField icon={<Building2 size={10} />} label="Studio / Production Co." value={project.studioName}
-            inputKey="studioName" {...fieldProps} />
-          <DetailField icon={<Tag size={10} />} label="Director" value={project.director}
-            inputKey="director" {...fieldProps} />
-          <DetailField icon={<Tag size={10} />} label="Producer" value={project.producer}
-            inputKey="producer" {...fieldProps} />
-          <DetailField icon={<Tag size={10} />} label="Genre" value={project.genre}
-            inputKey="genre" {...fieldProps} />
-          <DetailField icon={<Calendar size={10} />} label="Expected Release" value={project.expectedRelease}
-            inputKey="expectedRelease" {...fieldProps} placeholder="e.g. Q3 2026, Summer 2026" />
+          <DetailField icon={<Film size={10} />}         label="Project Name"        value={project.name}            inputKey="name"            {...fieldProps} />
+          <DetailField icon={<Building2 size={10} />}    label="Studio / Production" value={project.studioName}      inputKey="studioName"      {...fieldProps} />
+          <DetailField icon={<Tag size={10} />}          label="Director"            value={project.director}         inputKey="director"        {...fieldProps} />
+          <DetailField icon={<Tag size={10} />}          label="Producer"            value={project.producer}         inputKey="producer"        {...fieldProps} />
+          <DetailField icon={<Tag size={10} />}          label="Genre"               value={project.genre}            inputKey="genre"           {...fieldProps} />
+          <DetailField icon={<Calendar size={10} />}     label="Expected Release"    value={project.expectedRelease}  inputKey="expectedRelease" {...fieldProps} />
         </div>
-
-        <DetailField icon={<FileText size={10} />} label="Logline" value={project.logline}
-          inputKey="logline" {...fieldProps} multiline />
+        <DetailField icon={<FileText size={10} />} label="Logline" value={project.logline} inputKey="logline" {...fieldProps} multiline />
       </div>
 
-      {/* ── Contact Details ── */}
-      <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 space-y-4">
-        <h3 className="text-[10px] text-slate-600 uppercase tracking-widest flex items-center gap-2">
+      {/* Contact Details */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
+        <h3 className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold flex items-center gap-2">
           <Phone size={11} /> Contact Details
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
-          <DetailField icon={<Mail size={10} />} label="Production Email" value={project.productionEmail}
-            inputKey="productionEmail" type="email" {...fieldProps} />
-          <DetailField icon={<Phone size={10} />} label="Production Phone" value={project.productionPhone}
-            inputKey="productionPhone" type="tel" {...fieldProps} />
-          <DetailField icon={<ExternalLink size={10} />} label="IMDb Link" value={project.imdbLink}
-            inputKey="imdbLink" type="url" {...fieldProps} />
+          <DetailField icon={<Mail size={10} />}         label="Production Email" value={project.productionEmail} inputKey="productionEmail" type="email" {...fieldProps} />
+          <DetailField icon={<Phone size={10} />}        label="Production Phone" value={project.productionPhone} inputKey="productionPhone" type="tel"   {...fieldProps} />
+          <DetailField icon={<ExternalLink size={10} />} label="IMDb Link"        value={project.imdbLink}        inputKey="imdbLink"        type="url"   {...fieldProps} />
         </div>
       </div>
 
-      {/* ── Notes ── */}
-      <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 space-y-4">
-        <h3 className="text-[10px] text-slate-600 uppercase tracking-widest flex items-center gap-2">
+      {/* Notes */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
+        <h3 className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold flex items-center gap-2">
           <StickyNote size={11} /> Internal Notes
         </h3>
-        <DetailField icon={<StickyNote size={10} />} label="Notes" value={project.notes}
-          inputKey="notes" {...fieldProps} multiline />
+        <DetailField icon={<StickyNote size={10} />} label="Notes" value={project.notes} inputKey="notes" {...fieldProps} multiline />
       </div>
 
-      {/* ── Meta ── */}
-      <div className="text-[11px] text-slate-800 border-t border-white/[0.04] pt-4 flex items-center gap-4">
+      {/* Meta */}
+      <div className="text-[11px] text-slate-400 border-t border-slate-100 pt-4 flex items-center gap-4 flex-wrap">
         <span>Created {new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
         {project.createdBy && <><span>·</span><span>by @{project.createdBy.username}</span></>}
         <span>·</span>
