@@ -1,4 +1,4 @@
-package com.scriptsentries.model.enums;
+package com.scriptsentries.model;
 
 /**
  * Unified role enum used for both User.role (global) and ProjectMember.projectRole (per-project).
