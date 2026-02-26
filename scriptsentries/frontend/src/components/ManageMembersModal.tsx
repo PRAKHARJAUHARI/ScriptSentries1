@@ -185,7 +185,7 @@ export function ManageMembersModal({ project, onClose, onUpdated }: Props) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="text-xs font-semibold text-slate-700 truncate">@{m.user.username}</p>
-                          {creator && <Crown size={10} className="text-amber-500 flex-shrink-0" title="Project creator" />}
+                          {creator && <Crown size={10} className="text-amber-500 flex-shrink-0" aria-label="Project creator" />}
                           {isSelf && <span className="text-[9px] text-slate-400">(you)</span>}
                         </div>
                         <p className="text-[10px] text-slate-400 truncate">{m.user.email}</p>

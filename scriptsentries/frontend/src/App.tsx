@@ -1,12 +1,12 @@
 // src/App.tsx
 import { useState, useEffect, useCallback } from 'react'
 import {
-  ShieldCheck, FileText, Download, ChevronLeft,
+  ShieldCheck, Download, ChevronLeft,
   Loader2, LogOut, User, Film, Plus, Users,
   Upload, GitBranch, ChevronRight, Settings
 } from 'lucide-react'
 import type { Script, RiskFlag } from './types'
-import { listScripts, getScript, exportScript, scanScript } from './api/api'
+import { getScript, exportScript, scanScript } from './api/api'
 import { getProjects, type ProjectResponse } from './api/projectApi'
 import { RiskTable } from './components/RiskTable'
 import { RiskDrawer } from './components/RiskDrawer'
@@ -19,13 +19,6 @@ import { AuthProvider, useAuth, canUpload, canManageMembers } from './context/Au
 
 type View = 'home' | 'project' | 'workbench'
 type AppScreen = 'landing' | 'auth' | 'app'
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
 
 const ROLE_COLORS: Record<string, string> = {
   ATTORNEY:                'text-violet-700 bg-violet-50 border-violet-200',
@@ -104,7 +97,6 @@ function AppInner() {
   const [authMode,      setAuthMode]      = useState<'login' | 'signup'>('login')
 
   const [view,          setView]          = useState<View>('home')
-  const [scripts,       setScripts]       = useState<Script[]>([])
   const [projects,      setProjects]      = useState<ProjectResponse[]>([])
   const [activeScript,  setActiveScript]  = useState<Script | null>(null)
   const [activeProject, setActiveProject] = useState<ProjectResponse | null>(null)
@@ -116,10 +108,6 @@ function AppInner() {
   const [timelineKey,   setTimelineKey]   = useState(0)
   const [pendingScript, setPendingScript] = useState<Script | null>(null)
 
-  const loadScripts  = useCallback(async () => {
-    try { setScripts(await listScripts()) } catch { /* ignore */ }
-  }, [])
-
   const loadProjects = useCallback(async () => {
     if (!user) return
     try { setProjects(await getProjects(user.userId)) } catch { /* ignore */ }
@@ -127,10 +115,9 @@ function AppInner() {
 
   useEffect(() => {
     if (isAuthenticated && screen === 'app') {
-      loadScripts()
       loadProjects()
     }
-  }, [loadScripts, loadProjects, isAuthenticated, screen])
+  }, [loadProjects, isAuthenticated, screen])
 
   // If not authenticated, show landing/auth screens
   if (!isAuthenticated || screen !== 'app') {
@@ -169,7 +156,6 @@ function AppInner() {
   }
 
   const handleUploadDone = async (script: Script) => {
-    await loadScripts()
     setTimelineKey(k => k + 1)
     setPendingScript(script)
   }

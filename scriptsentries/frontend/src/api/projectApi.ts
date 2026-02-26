@@ -79,10 +79,17 @@ export interface CreateProjectPayload {
   notes?: string
 }
 
+export type UpdateProjectPayload = Partial<Omit<CreateProjectPayload, 'members'>>
+
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export async function createProject(payload: CreateProjectPayload, userId: number): Promise<ProjectResponse> {
   const { data } = await api.post<ProjectResponse>('/projects', payload, { params: { userId } })
+  return data
+}
+
+export async function updateProject(id: number, payload: UpdateProjectPayload, userId: number): Promise<ProjectResponse> {
+  const { data } = await api.patch<ProjectResponse>(`/projects/${id}`, payload, { params: { userId } })
   return data
 }
 
@@ -134,6 +141,17 @@ export async function removeProjectMember(
 
 // ── Scripts ───────────────────────────────────────────────────────────────────
 
+export async function assignScriptToProject(
+  scriptId: number,
+  projectId: number,
+  versionName: string | undefined,
+  userId: number,
+): Promise<void> {
+  await api.post(`/projects/scripts/${scriptId}/assign`, null, {
+    params: { projectId, versionName, userId },
+  })
+}
+
 export async function renameVersion(scriptId: number, versionName: string, userId: number): Promise<void> {
   await api.patch(`/projects/scripts/${scriptId}/rename`, { versionName }, { params: { userId } })
 }
@@ -142,7 +160,7 @@ export async function deleteScript(scriptId: number, userId: number): Promise<vo
   await api.delete(`/projects/scripts/${scriptId}`, { params: { userId } })
 }
 
-// ── User search (for adding members) ─────────────────────────────────────────
+// ── User search ───────────────────────────────────────────────────────────────
 
 export async function searchUsers(query: string): Promise<UserSummary[]> {
   const { data } = await api.get<UserSummary[]>('/auth/users/search', { params: { q: query } })
