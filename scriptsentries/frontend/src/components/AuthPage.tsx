@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { ShieldCheck, Eye, EyeOff, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import api from '../api/api' // <-- ADD THIS LINE
+import { api } from '../api/api'
 
 interface Props {
   onSuccess: (user: { userId: number; username: string; email: string; role: string; token: string }) => void
