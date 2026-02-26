@@ -1,6 +1,6 @@
 package com.scriptsentries.model;
 
-import com.scriptsentries.model.enums.ProjectRole;
+import com.scriptsentries.model.ProjectRole;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

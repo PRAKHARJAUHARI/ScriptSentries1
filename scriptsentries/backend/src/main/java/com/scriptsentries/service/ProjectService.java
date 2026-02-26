@@ -2,7 +2,7 @@ package com.scriptsentries.service;
 
 import com.scriptsentries.dto.ProjectDto;
 import com.scriptsentries.model.*;
-import com.scriptsentries.model.enums.ProjectRole;
+import com.scriptsentries.model.ProjectRole;
 import com.scriptsentries.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
